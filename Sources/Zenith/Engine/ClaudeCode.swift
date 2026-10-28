@@ -96,6 +96,23 @@ final class ClaudeCode: @unchecked Sendable {
         """
     }
 
+    /// Holds the process so cancel() can reach it. False if already cancelled.
+    private func adopt(_ p: Process) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if cancelled { return false }
+        process = p
+        return true
+    }
+
+    /// Lets go of the process. True if it was cancelled.
+    private func release() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        process = nil
+        return cancelled
+    }
+
     func cancel() {
         lock.lock()
         cancelled = true
@@ -131,10 +148,7 @@ final class ClaudeCode: @unchecked Sendable {
         p.standardOutput = stdout
         p.standardError = stderr
 
-        lock.lock()
-        if cancelled { lock.unlock(); throw ClaudeError.cancelled }
-        process = p
-        lock.unlock()
+        guard adopt(p) else { throw ClaudeError.cancelled }
 
         try p.run()
         // The prompt goes in on stdin, so nothing in it is ever read as a flag.
@@ -170,11 +184,7 @@ final class ClaudeCode: @unchecked Sendable {
         p.waitUntilExit()
         _ = await errReader.value
 
-        lock.lock()
-        let wasCancelled = cancelled
-        process = nil
-        lock.unlock()
-        if wasCancelled { throw ClaudeError.cancelled }
+        if release() { throw ClaudeError.cancelled }
 
         if var r = result {
             if r.usage == nil { r.usage = usage }

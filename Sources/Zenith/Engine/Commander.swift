@@ -806,9 +806,10 @@ final class Commander: ObservableObject {
     func setLiving(_ id: String, enabled: Bool? = nil, cadence: Cadence? = nil) {
         store.update(id) { m in
             if let enabled { m.living?.enabled = enabled }
-            if let cadence {
-                m.living?.cadence = cadence
-                m.living?.scheduleNext(from: m.living?.runs.last?.at ?? Date())
+            if let cadence, var plan = m.living {
+                plan.cadence = cadence
+                plan.scheduleNext(from: plan.runs.last?.at ?? Date())
+                m.living = plan
             }
         }
     }
