@@ -170,3 +170,53 @@ export function progressNote(text: string): string {
   const first = text.replace(/\s+/g, " ").match(/^.{1,200}?[.!?](\s|$)/)?.[0] ?? text.slice(0, 200);
   return first.trim();
 }
+
+// Galaxy Trainer practice drills: a dry run of a mission. Claude Code only plans: it gets
+// no tools at all, one turn, and an empty folder, and its plan is the answer.
+
+/** Every tool a practice run is denied (Agent is Task's newer name). */
+export const PRACTICE_DISALLOWED_TOOLS = [
+  "Bash", "Edit", "Write", "MultiEdit", "NotebookEdit", "WebFetch", "WebSearch",
+  "Task", "Agent", "Read", "Glob", "Grep", "TodoWrite",
+];
+export const PRACTICE_TIMEOUT_MS = 90_000;
+export const PRACTICE_MAX_CHARS = 1500;
+
+export function practiceArgs(config: MissionConfig, prompt: string): string[] {
+  return [
+    "-p", prompt,
+    "--output-format", "stream-json",
+    "--verbose",
+    "--model", config.model,
+    "--disallowedTools", PRACTICE_DISALLOWED_TOOLS.join(","),
+    "--max-turns", "1",
+    "--settings", sandboxSettings(config),
+  ];
+}
+
+/** The mission prompt for a drill, plus the dry-run rules and the shape of the answer. */
+export function practicePrompt(drill: { id: string; text: string }, galaxy: string | null): string {
+  const title = drill.text.trim().split("\n")[0].slice(0, 80) || "Practice drill";
+  const mission = missionPrompt(
+    { id: drill.id, from: "the Galaxy trainer", title, instructions: drill.text.trim() },
+    "a fresh folder in ~/Galaxy/Missions (made when a real mission starts)",
+    galaxy,
+  );
+  return [
+    mission,
+    "",
+    "PRACTICE DRILL, DRY RUN: this is practice, not a real mission. Do not start the work and do not use any tools (you have none here). " +
+      `Reply only with your plan, in plain text, under ${PRACTICE_MAX_CHARS} characters:`,
+    "1. First steps: what you would do first, in order.",
+    "2. Checking: how you would check your work before calling it done.",
+    "3. Assumptions: what you would assume where the request is unclear.",
+    "4. Approval: anything you would ask the user to approve first (spending money, their accounts, sending things in their name, anything that can't be undone), or \"nothing\".",
+    "5. Hand-back: what you would hand back at the end, and where.",
+  ].join("\n");
+}
+
+/** Keeps a practice answer within PRACTICE_MAX_CHARS. */
+export function capAnswer(text: string, max = PRACTICE_MAX_CHARS): string {
+  const t = text.trim();
+  return t.length <= max ? t : t.slice(0, max - 1).trimEnd() + "…";
+}

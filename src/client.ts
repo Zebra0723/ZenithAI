@@ -27,7 +27,8 @@ export interface LinkTask {
 
 export interface LinkInboxItem {
   id: number;
-  kind: "task_result" | "message";
+  /** "practice": a Galaxy Trainer drill; taskId is the practice id, text the drill. */
+  kind: "task_result" | "message" | "practice";
   taskId: string;
   text: string;
   replyTo: string;
@@ -165,6 +166,11 @@ export class GalaxyLink {
     return this.call<LinkTask>("POST", `/v1/tasks/${id}/done`, { ok, result });
   }
 
+  /** Answers a Galaxy Trainer practice drill (an inbox item of kind "practice"). */
+  practiceAnswer(id: string, answer: string) {
+    return this.call<unknown>("POST", `/v1/practice/${encodeURIComponent(id)}/answer`, { answer });
+  }
+
   /**
    * Asks the user a yes-or-no and waits for the answer (a thumbs up or down to Nebula, or
    * another body). Resolves to the settled approval, or null if Link isn't there.
@@ -203,7 +209,8 @@ export class GalaxyLink {
 
   /**
    * Says hello, then keeps three loops going until goodbye(): a heartbeat,
-   * work handed to this body, and results coming back to it. Link being
+   * work handed to this body, and its inbox (results coming back to it,
+   * messages, practice drills). Link being
    * down just means the loops wait and try again.
    */
   run(handlers: {
