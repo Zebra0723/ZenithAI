@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  core:
+    name: Core and tests (Linux)
+    runs-on: ubuntu-24.04
+    container: swift:6.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tests
+        run: swift test
+
+  app:
+    name: Zenith.app (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the app
+        run: swift build -c release
+      - name: Tests on macOS
+        run: swift test
+      - name: Bundle (ad-hoc signed)
+        run: scripts/build-app.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zenith.app
+          path: build/Zenith.app
