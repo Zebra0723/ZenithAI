@@ -319,17 +319,26 @@ struct GalaxyMap: View {
 
     private let members: [Member] = [.nova, .cloud, .zenith, .comet, .nebula]
 
+    /// Points on an arc across the panel, the middle one (Zenith) at its highest.
+    static func arc(count: Int, in size: CGSize) -> [CGPoint] {
+        let w = Double(size.width)
+        let h = Double(size.height)
+        var points: [CGPoint] = []
+        for i in 0..<count {
+            let t = Double(i) / Double(max(1, count - 1))
+            let x: Double = 18 + t * (w - 36)
+            let y: Double = h * 0.78 - sin(t * Double.pi) * h * 0.5
+            points.append(CGPoint(x: x, y: y))
+        }
+        return points
+    }
+
     var body: some View {
         Panel(padding: 18) {
             VStack(alignment: .leading, spacing: 4) {
                 Eyebrow("Galaxy")
                 GeometryReader { geo in
-                    let w = geo.size.width, h = geo.size.height
-                    let points = members.enumerated().map { i, _ -> CGPoint in
-                        let t = Double(i) / Double(members.count - 1)
-                        // An arc across the panel, Zenith at its highest point.
-                        return CGPoint(x: 18 + t * (w - 36), y: h * 0.78 - sin(t * .pi) * h * 0.5)
-                    }
+                    let points = Self.arc(count: members.count, in: geo.size)
                     ZStack {
                         Path { p in
                             p.move(to: points[0])

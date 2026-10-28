@@ -210,20 +210,25 @@ struct GlassModifier: ViewModifier {
     var tint: Color? = nil
     var strong = false
 
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius, style: .continuous) }
+
+    private var edge: LinearGradient {
+        let base: Color = tint ?? .white
+        let top: Double = tint == nil ? 0.16 : 0.55
+        let bottom: Double = tint == nil ? 0.05 : 0.18
+        return LinearGradient(colors: [base.opacity(top), base.opacity(bottom)], startPoint: .top, endPoint: .bottom)
+    }
+
+    private var shadowColor: Color { tint.map { $0.opacity(0.22) } ?? Color.black.opacity(0.18) }
+
     func body(content: Content) -> some View {
         content
             .background {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(strong ? Theme.glassStrong : Theme.glass)
-                    .background(.ultraThinMaterial.opacity(0.35), in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+                shape.fill(strong ? Theme.glassStrong : Theme.glass)
+                    .background(.ultraThinMaterial.opacity(0.35), in: shape)
             }
-            .overlay {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(LinearGradient(colors: [(tint ?? .white).opacity(tint == nil ? 0.16 : 0.55),
-                                                          (tint ?? .white).opacity(tint == nil ? 0.05 : 0.18)],
-                                                 startPoint: .top, endPoint: .bottom), lineWidth: 1)
-            }
-            .shadow(color: (tint ?? .black).opacity(tint == nil ? 0.18 : 0.22), radius: tint == nil ? 18 : 22, y: tint == nil ? 8 : 0)
+            .overlay { shape.strokeBorder(edge, lineWidth: 1) }
+            .shadow(color: shadowColor, radius: tint == nil ? 18 : 22, y: tint == nil ? 8 : 0)
     }
 }
 
