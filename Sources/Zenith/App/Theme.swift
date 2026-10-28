@@ -158,23 +158,48 @@ struct SkyBackground: View {
 struct StarField: View {
     var opacity: Double
 
+    private struct Star {
+        let x: Double
+        let y: Double
+        let r: Double
+        let a: Double
+    }
+
+    /// Positions as fractions of the window, from a fixed seed.
+    private static let stars: [Star] = {
+        var seed: UInt64 = 0x5EED_2E41_7A11
+        func next() -> Double {
+            seed = seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+            return Double(seed >> 11) / 9_007_199_254_740_992.0
+        }
+        var list: [Star] = []
+        for _ in 0..<170 {
+            let x = next()
+            let y = pow(next(), 1.4) * 0.75
+            let r = 0.4 + next() * 1.1
+            let a = 0.15 + next() * 0.55
+            list.append(Star(x: x, y: y, r: r, a: a))
+        }
+        return list
+    }()
+
     var body: some View {
         Canvas { context, size in
-            guard opacity > 0 else { return }
-            var seed: UInt64 = 0x5EED_2E41_7A11
-            func next() -> Double {
-                seed = seed &* 6364136223846793005 &+ 1442695040888963407
-                return Double(seed >> 11) / Double(1 << 53)
-            }
-            for _ in 0..<170 {
-                let x = next() * size.width
-                let y = pow(next(), 1.4) * size.height * 0.75
-                let r = 0.4 + next() * 1.1
-                let a = (0.15 + next() * 0.55) * opacity * (1 - y / (size.height * 0.9))
-                context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: r * 2, height: r * 2)), with: .color(.white.opacity(a)))
-            }
+            draw(&context, size)
         }
         .allowsHitTesting(false)
+    }
+
+    private func draw(_ context: inout GraphicsContext, _ size: CGSize) {
+        guard opacity > 0 else { return }
+        let w = Double(size.width)
+        let h = Double(size.height)
+        for star in Self.stars {
+            let fade: Double = 1 - star.y / 0.9
+            let alpha: Double = star.a * opacity * fade
+            let rect = CGRect(x: star.x * w, y: star.y * h, width: star.r * 2, height: star.r * 2)
+            context.fill(Path(ellipseIn: rect), with: .color(Color.white.opacity(alpha)))
+        }
     }
 }
 
