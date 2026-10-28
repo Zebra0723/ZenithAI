@@ -1,0 +1,14 @@
+{
+  "name": "zenith",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ZenithAI: the GalaxyAI member that takes on whole missions and works on them for hours",
+  "type": "module",
+  "scripts": {
+    "start": "bun src/zenith.ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4"
+  }
+}
