@@ -9,12 +9,24 @@
 // Between missions it also takes Galaxy Trainer practice drills: it plans each one as a
 // dry run (no tools) and sends the plan back to be graded.
 
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { GalaxyLink, type LinkTask } from "./client";
 import { configFromEnv, missionFolder, missionPrompt } from "./missions";
 import { Practice } from "./practice";
 import { runClaude } from "./runner";
 
 export const POWERS = ["missions", "practice"];
+
+// Signed in the way Comet is: the year-long Claude token `galaxy login` saves, so Claude Code
+// works from launchd without Terminal's login. Never an API key (runner.ts removes one).
+if (!process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+  try {
+    const saved = readFileSync(join(homedir(), "Library", "Application Support", "Galaxy", "claude-token"), "utf8").trim();
+    if (saved) process.env.CLAUDE_CODE_OAUTH_TOKEN = saved;
+  } catch {}
+}
 
 const config = configFromEnv();
 const link = new GalaxyLink("zenith", { name: "Zenith", powers: POWERS, version: "0.1.0" });
