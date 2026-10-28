@@ -65,20 +65,20 @@ final class AppWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 800),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1300, height: 840),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
         window.title = "Zenith"
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
-        window.appearance = NSAppearance(named: .aqua)
-        window.backgroundColor = NSColor(Theme.ground)
-        window.minSize = NSSize(width: 1040, height: 660)
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = NSColor(red: 0.03, green: 0.04, blue: 0.09, alpha: 1)
+        window.minSize = NSSize(width: 1080, height: 700)
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.contentView = NSHostingView(rootView: RootView(navigation: navigation)
-            .environment(\.colorScheme, .light))
+            .environment(\.colorScheme, .dark))
         window.center()
         window.setFrameAutosaveName("ZenithWindow")
         return window
@@ -92,30 +92,36 @@ struct RootView: View {
     @ObservedObject private var connector = Connector.shared
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-            Group {
-                switch navigation.section {
-                case .board:
-                    if let id = navigation.missionID, store.mission(id) != nil {
-                        MissionView(id: id, navigation: navigation)
-                    } else {
-                        BoardView(navigation: navigation)
+        ZStack {
+            SkyBackground()
+            HStack(spacing: 0) {
+                sidebar
+                    .padding(.leading, 12)
+                    .padding(.vertical, 12)
+                Group {
+                    switch navigation.section {
+                    case .board:
+                        if let id = navigation.missionID, store.mission(id) != nil {
+                            MissionView(id: id, navigation: navigation)
+                        } else {
+                            BoardView(navigation: navigation)
+                        }
+                    case .new: NewMissionView(navigation: navigation)
+                    case .needsYou: NeedsYouView(navigation: navigation)
+                    case .replay: ReplayView(navigation: navigation)
+                    case .living: LivingView(navigation: navigation)
+                    case .budget: BudgetView()
+                    case .settings: SettingsView()
                     }
-                case .new: NewMissionView(navigation: navigation)
-                case .needsYou: NeedsYouView(navigation: navigation)
-                case .replay: ReplayView(navigation: navigation)
-                case .living: LivingView(navigation: navigation)
-                case .budget: BudgetView()
-                case .settings: SettingsView()
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity)
+                .animation(.easeOut(duration: 0.18), value: navigation.section)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Theme.ground)
         }
         .ignoresSafeArea()
         .foregroundStyle(Theme.ink)
-        .tint(Theme.ink)
+        .tint(Theme.sun)
     }
 
     private var openQuestions: Int {
@@ -125,14 +131,14 @@ struct RootView: View {
     private var working: Bool { store.missions.contains { $0.isActive } }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 10) {
-                ZenithGlyph(live: working, onNight: true).frame(width: 20, height: 20)
-                Text("Zenith").font(Theme.display(18)).foregroundStyle(Theme.nightInk)
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 11) {
+                ZenithGlyph(live: working).frame(width: 22, height: 22)
+                Text("Zenith").font(Theme.display(23, weight: .regular)).tracking(-0.3)
             }
             .padding(.horizontal, 12)
-            .padding(.top, 54)
-            .padding(.bottom, 28)
+            .padding(.top, 46)
+            .padding(.bottom, 30)
 
             ForEach(AppSection.allCases) { section in
                 SidebarRow(section: section, selected: navigation.section == section,
@@ -141,43 +147,44 @@ struct RootView: View {
                     if section == .board { navigation.missionID = nil }
                 }
                 if section == .new || section == .living {
-                    Rectangle().fill(Theme.nightLine).frame(height: 1).padding(.vertical, 10).padding(.horizontal, 12)
+                    Rule().padding(.vertical, 12).padding(.horizontal, 12)
                 }
             }
 
             Spacer()
 
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 if let r = commander.reading {
                     Button { navigation.section = .budget } label: {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("This week").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.nightInk2)
-                                Spacer()
-                                Text("\(Format.percent(r.usedPercent)) of \(Int(r.capPercent))%")
-                                    .font(Theme.mono(10.5)).foregroundStyle(Theme.nightInk)
+                        HStack(spacing: 14) {
+                            SunDial(value: r.usedPercent / 100, cap: r.capPercent / 100, lineWidth: 4, label: "", caption: "")
+                                .frame(width: 38, height: 38)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(Format.percent(r.usedPercent)).font(Theme.numeral(20, weight: .light))
+                                Text("of the week · cap \(Int(r.capPercent))%").font(.system(size: 10.5)).foregroundStyle(Theme.ink3)
                             }
-                            NightMeter(value: r.usedPercent / 100, cap: r.capPercent / 100)
                         }
                         .padding(12)
-                        .background(Theme.nightRaised, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
-                HStack(spacing: 7) {
-                    Circle().fill(connector.connected ? Theme.sun : Theme.nightLine).frame(width: 6, height: 6)
+                HStack(spacing: 8) {
+                    Circle().fill(connector.connected ? Theme.good : Theme.ink4).frame(width: 6, height: 6)
+                        .shadow(color: connector.connected ? Theme.good : .clear, radius: 3)
                     Text(connector.connected ? "Galaxy Link connected" : "Galaxy Link not running")
-                        .font(.system(size: 11)).foregroundStyle(Theme.nightInk2)
+                        .font(.system(size: 11)).foregroundStyle(Theme.ink3)
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 6)
             }
-            .padding(.bottom, 20)
+            .padding(.bottom, 16)
         }
-        .padding(.horizontal, 12)
-        .frame(width: 228)
+        .padding(.horizontal, 10)
+        .frame(width: 232)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Theme.night)
-        .environment(\.colorScheme, .dark)
+        .glass(radius: 22)
     }
 }
 
@@ -190,50 +197,38 @@ private struct SidebarRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 11) {
+            HStack(spacing: 12) {
                 Image(systemName: section.icon)
-                    .font(.system(size: 12.5))
+                    .font(.system(size: 12.5, weight: .medium))
                     .frame(width: 18)
-                    .foregroundStyle(selected ? Theme.sun : Theme.nightInk2)
+                    .foregroundStyle(selected ? Theme.sun : Theme.ink3)
                 Text(section.title)
                     .font(.system(size: 13.5, weight: selected ? .semibold : .regular))
-                    .foregroundStyle(selected ? Theme.nightInk : Theme.nightInk2)
+                    .foregroundStyle(selected ? Theme.ink : Theme.ink2)
                 Spacer()
                 if badge > 0 {
                     Text("\(badge)")
-                        .font(Theme.mono(10.5, weight: .semibold))
-                        .foregroundStyle(Theme.night)
-                        .padding(.horizontal, 6)
-                        .frame(height: 17)
+                        .font(Theme.mono(10.5, weight: .bold))
+                        .foregroundStyle(Color(red: 0.1, green: 0.07, blue: 0.03))
+                        .padding(.horizontal, 7)
+                        .frame(height: 18)
                         .background(Theme.sun, in: Capsule())
+                        .shadow(color: Theme.sunGlow, radius: 6)
                 }
             }
             .padding(.horizontal, 12)
-            .frame(height: 33)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(selected ? Theme.nightRaised : (hovering ? Theme.nightRaised.opacity(0.5) : .clear)))
+            .frame(height: 35)
+            .background {
+                if selected {
+                    RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Theme.glassStrong)
+                        .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Theme.line, lineWidth: 1))
+                } else if hovering {
+                    RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Theme.glass)
+                }
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-    }
-}
-
-/// The weekly meter on the night sidebar, with the cap marked.
-struct NightMeter: View {
-    var value: Double
-    var cap: Double
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(Theme.nightLine)
-                Capsule().fill(value >= cap ? Theme.alert : Theme.sun)
-                    .frame(width: max(3, min(1, value) * geo.size.width))
-                Rectangle().fill(Theme.nightInk).frame(width: 1.5, height: 10)
-                    .offset(x: cap * geo.size.width - 0.75)
-            }
-        }
-        .frame(height: 5)
     }
 }

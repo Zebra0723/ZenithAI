@@ -11,11 +11,13 @@ struct NeedsYouView: View {
     }
 
     var body: some View {
-        Page(maxWidth: 860) {
-            PageTitle(eyebrow: "Needs you", title: waiting.isEmpty ? "Nothing waiting on you" : "Your answers, in one batch",
+        Page(maxWidth: 900) {
+            PageTitle(eyebrow: "Needs you", title: waiting.isEmpty ? "Nothing waits on you." : "Your answers, in one batch.",
                       subtitle: "Missions finish everything they can first, then wait here with all their questions at once. Yes-or-no questions can also be answered with a thumbs up or down to Nebula.")
             if waiting.isEmpty {
-                Panel { EmptyState(title: "All clear", detail: "When a mission needs a decision only you can make, it shows up here. Nothing is sent to you until a mission is done.") }
+                Panel(padding: 0) {
+                    EmptyState(title: "All clear", detail: "When a mission needs a decision only you can make, it shows up here. Nothing is sent to you until a mission is done.")
+                }
             }
             ForEach(waiting) { m in
                 MissionQuestions(mission: m, navigation: navigation)
@@ -32,36 +34,46 @@ private struct MissionQuestions: View {
 
     private var questions: [Question] { mission.questions.filter { !$0.applied } }
 
-    private var complete: Bool {
-        questions.allSatisfy { q in
-            !(drafts[q.id] ?? q.answer ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
+    private var answered: Int {
+        questions.filter { !(drafts[$0.id] ?? $0.answer ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.count
     }
+
+    private var complete: Bool { answered == questions.count }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(mission.title).font(Theme.display(17))
-                    Text(mission.status == .living ? "Living mission" : "\(mission.steps.filter { $0.status == .done }.count) of \(mission.steps.count) steps done")
-                        .font(Theme.body(12)).foregroundStyle(Theme.ink2)
+            HStack(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Eyebrow(mission.status == .living ? "Living mission" : "\(mission.steps.filter { $0.status == .done }.count) of \(mission.steps.count) steps done",
+                            color: Theme.alert)
+                    Text(mission.title).font(Theme.display(26)).tracking(-0.4)
                 }
                 Spacer()
-                Button("Open mission") { navigation.open(mission.id) }
-                    .buttonStyle(.plain).font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.ink2)
+                Button { navigation.open(mission.id) } label: {
+                    HStack(spacing: 5) {
+                        Text("Open mission")
+                        Image(systemName: "arrow.up.right").font(.system(size: 9, weight: .bold))
+                    }
+                    .font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.ink3)
+                }
+                .buttonStyle(.plain)
             }
-            .padding(20)
+            .padding(.horizontal, 28)
+            .padding(.top, 26)
+            .padding(.bottom, 10)
 
-            ForEach(questions) { q in
-                Rule()
-                QuestionRow(question: q, answer: binding(q))
-                    .padding(20)
+            ForEach(Array(questions.enumerated()), id: \.element.id) { i, q in
+                if i > 0 { Rule().padding(.horizontal, 28) }
+                QuestionRow(number: i + 1, question: q, answer: binding(q))
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 22)
             }
 
-            Rule()
-            HStack {
+            HStack(spacing: 14) {
+                Text("\(answered) of \(questions.count)").font(Theme.numeral(15, weight: .light)).foregroundStyle(Theme.ink2)
+                Meter(value: questions.isEmpty ? 0 : Double(answered) / Double(questions.count), height: 2).frame(width: 120)
                 Text(complete ? "Zenith picks back up the moment you send these." : "Answer each one, then send them together.")
-                    .font(Theme.body(12)).foregroundStyle(Theme.ink2)
+                    .font(Theme.body(12)).foregroundStyle(Theme.ink3)
                 Spacer()
                 Button {
                     for q in questions {
@@ -79,10 +91,12 @@ private struct MissionQuestions: View {
                 .buttonStyle(ZenithButtonStyle(kind: .primary))
                 .disabled(!complete)
             }
-            .padding(20)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .background(Color.black.opacity(0.16))
         }
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.line, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .glass(radius: 24)
     }
 
     private func binding(_ q: Question) -> Binding<String> {
@@ -91,28 +105,36 @@ private struct MissionQuestions: View {
 }
 
 private struct QuestionRow: View {
+    let number: Int
     let question: Question
     @Binding var answer: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Pill(text: question.reason.label, color: color)
-                Text(Format.date(question.askedAt)).font(Theme.mono(10)).foregroundStyle(Theme.ink3)
-            }
-            Text(question.text).font(Theme.body(14)).foregroundStyle(Theme.ink).fixedSize(horizontal: false, vertical: true)
-            switch question.kind {
-            case .yesNo:
-                HStack(spacing: 8) {
-                    choice("Yes", icon: "hand.thumbsup")
-                    choice("No", icon: "hand.thumbsdown")
+        HStack(alignment: .top, spacing: 18) {
+            Text(String(format: "%02d", number))
+                .font(Theme.numeral(22, weight: .ultraLight))
+                .foregroundStyle(Theme.ink3)
+                .frame(width: 34, alignment: .leading)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 10) {
+                    Pill(text: question.reason.label, color: color)
+                    Text(Format.date(question.askedAt)).font(.system(size: 11)).foregroundStyle(Theme.ink3)
                 }
-            case .choice:
-                FlowChoices(options: question.options, selected: $answer)
-            case .text:
-                TextField("Your answer", text: $answer, axis: .vertical)
-                    .lineLimit(1...5)
-                    .zenithField()
+                Text(question.text).font(Theme.display(19)).lineSpacing(3).foregroundStyle(Theme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                switch question.kind {
+                case .yesNo:
+                    HStack(spacing: 10) {
+                        choice("Yes", icon: "hand.thumbsup.fill")
+                        choice("No", icon: "hand.thumbsdown.fill")
+                    }
+                case .choice:
+                    Options(options: question.options, selected: $answer)
+                case .text:
+                    TextField("Your answer", text: $answer, axis: .vertical)
+                        .lineLimit(1...5)
+                        .zenithField()
+                }
             }
         }
     }
@@ -129,40 +151,43 @@ private struct QuestionRow: View {
         let on = answer == value
         return Button { answer = value } label: {
             Label(value, systemImage: icon)
-                .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(on ? Color.white : Theme.ink)
-                .padding(.horizontal, 16)
-                .frame(height: 32)
-                .background(on ? Theme.ink : Theme.surface, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(on ? Color.clear : Theme.lineStrong, lineWidth: 1))
-                .contentShape(Rectangle())
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(on ? Color(red: 0.1, green: 0.07, blue: 0.03) : Theme.ink)
+                .padding(.horizontal, 20)
+                .frame(height: 36)
+                .background(on ? AnyShapeStyle(Theme.sun) : AnyShapeStyle(Theme.glass), in: Capsule())
+                .overlay(Capsule().strokeBorder(on ? Color.clear : Theme.lineStrong, lineWidth: 1))
+                .shadow(color: on ? Theme.sunGlow : .clear, radius: 10)
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        .animation(.easeOut(duration: 0.12), value: on)
     }
 }
 
-/// Options as a row of buttons; one is chosen.
-private struct FlowChoices: View {
+/// Options as a list; one is chosen.
+private struct Options: View {
     let options: [String]
     @Binding var selected: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 7) {
             ForEach(options, id: \.self) { option in
+                let on = selected == option
                 Button { selected = option } label: {
-                    HStack(spacing: 10) {
+                    HStack(spacing: 12) {
                         ZStack {
-                            Circle().strokeBorder(selected == option ? Theme.ink : Theme.lineStrong, lineWidth: 1.2)
-                            if selected == option { Circle().fill(Theme.ink).padding(3.5) }
+                            Circle().strokeBorder(on ? Theme.sun : Theme.lineStrong, lineWidth: 1.2)
+                            if on { Circle().fill(Theme.sun).padding(4).shadow(color: Theme.sun, radius: 3) }
                         }
-                        .frame(width: 15, height: 15)
-                        Text(option).font(Theme.body(13)).foregroundStyle(Theme.ink).fixedSize(horizontal: false, vertical: true)
+                        .frame(width: 16, height: 16)
+                        Text(option).font(Theme.body(13.5)).foregroundStyle(Theme.ink).fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
-                    .background(selected == option ? Theme.raised : Theme.surface, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.line, lineWidth: 1))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                    .background(on ? Theme.glassStrong : Color.black.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(on ? Theme.sun.opacity(0.5) : Theme.line, lineWidth: 1))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)

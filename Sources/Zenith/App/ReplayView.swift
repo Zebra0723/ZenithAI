@@ -13,25 +13,26 @@ struct ReplayView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
-                Eyebrow("Replay").padding(.horizontal, 10).padding(.bottom, 10)
+        HStack(alignment: .top, spacing: 0) {
+            VStack(alignment: .leading, spacing: 6) {
+                Eyebrow("Replay").padding(.horizontal, 12).padding(.bottom, 8)
                 if missions.isEmpty {
-                    Text("Missions appear here once they've run.").font(Theme.body(12)).foregroundStyle(Theme.ink3).padding(.horizontal, 10)
+                    Text("Missions appear here once they've run.").font(Theme.body(12)).foregroundStyle(Theme.ink3).padding(.horizontal, 12)
                 }
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 3) {
                         ForEach(missions) { m in
+                            let on = selected?.id == m.id
                             Button { navigation.replayID = m.id } label: {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(m.title).font(.system(size: 12.5, weight: selected?.id == m.id ? .semibold : .regular))
-                                        .foregroundStyle(Theme.ink).lineLimit(2).multilineTextAlignment(.leading)
-                                    Text(Format.date(m.finishedAt ?? m.updatedAt)).font(Theme.mono(10)).foregroundStyle(Theme.ink3)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(m.title).font(Theme.display(15, weight: on ? .regular : .light))
+                                        .foregroundStyle(on ? Theme.ink : Theme.ink2).lineLimit(2).multilineTextAlignment(.leading)
+                                    Text(Format.date(m.finishedAt ?? m.updatedAt)).font(.system(size: 10.5)).foregroundStyle(Theme.ink3)
                                 }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(selected?.id == m.id ? Theme.surface : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .background(on ? Theme.glassStrong : .clear, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
@@ -40,17 +41,15 @@ struct ReplayView: View {
                 }
                 .scrollIndicators(.hidden)
             }
-            .padding(.top, 52)
-            .padding(.horizontal, 12)
-            .frame(width: 236)
+            .padding(.top, 54)
+            .padding(.horizontal, 10)
+            .frame(width: 250)
             .frame(maxHeight: .infinity, alignment: .top)
-            .background(Theme.raised)
-            .overlay(alignment: .trailing) { Rectangle().fill(Theme.line).frame(width: 1) }
 
             if let m = selected {
                 ReplayStage(mission: m).id(m.id)
             } else {
-                VStack { EmptyState(title: "Nothing to replay yet", detail: "Every mission is recorded as it runs. Pick one on the left to scrub through it.") }
+                EmptyState(title: "Nothing to replay yet", detail: "Every mission is recorded as it runs. Pick one on the left to scrub through it.")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -84,43 +83,25 @@ private struct ReplayStage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
             HStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 10) {
                     Eyebrow("Mission replay")
-                    Text(mission.title).font(Theme.display(24))
+                    Text(mission.title).font(Theme.display(34)).tracking(-0.6)
                 }
                 Spacer()
                 if let c = current {
                     VStack(alignment: .trailing, spacing: 6) {
-                        Text("+" + Format.elapsed(c.at.timeIntervalSince(start))).font(Theme.numeral(18, weight: .semibold))
-                        Text(Format.date(c.at)).font(Theme.mono(10.5)).foregroundStyle(Theme.ink3)
+                        Text("+" + Format.elapsed(c.at.timeIntervalSince(start))).font(Theme.numeral(40, weight: .ultraLight)).tracking(-0.8)
+                        Text(Format.date(c.at)).font(.system(size: 11)).foregroundStyle(Theme.ink3)
                     }
                 }
             }
 
             stage
-
             lanesView
-
-            HStack(spacing: 14) {
-                Button {
-                    if index >= events.count - 1 { cursor = 0 }
-                    playing.toggle()
-                } label: {
-                    Image(systemName: playing ? "pause.fill" : "play.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white)
-                        .frame(width: 34, height: 34)
-                        .background(Theme.ink, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.space, modifiers: [])
-                Slider(value: $cursor, in: 0...Double(max(1, events.count - 1)))
-                    .tint(Theme.sun)
-                Text("\(index + 1) / \(events.count)").font(Theme.mono(10.5)).foregroundStyle(Theme.ink3).frame(width: 74, alignment: .trailing)
-            }
+            transport
         }
         .padding(.horizontal, 40)
-        .padding(.top, 50)
+        .padding(.top, 54)
         .padding(.bottom, 30)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onReceive(clock) { _ in
@@ -132,74 +113,101 @@ private struct ReplayStage: View {
     private var stage: some View {
         HStack(alignment: .top, spacing: 18) {
             ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.night)
+                RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.black.opacity(0.4))
                 if let snap = snapshot, let file = snap.file {
                     SnapshotImage(url: store.snapshots(mission.id).appendingPathComponent(file))
                         .aspectRatio(contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .padding(14)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .shadow(color: .black.opacity(0.5), radius: 20, y: 10)
+                        .padding(18)
                 } else {
-                    VStack(spacing: 10) {
-                        ZenithGlyph(live: true, onNight: true).frame(width: 30, height: 30)
-                        Text("No cloud screen yet at this point").font(Theme.body(12)).foregroundStyle(Theme.nightInk2)
+                    VStack(spacing: 12) {
+                        ZenithGlyph(live: true).frame(width: 34, height: 34)
+                        Text("No cloud screen yet at this point").font(Theme.body(12.5)).foregroundStyle(Theme.ink3)
                     }
                 }
             }
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Theme.line, lineWidth: 1))
             .frame(maxWidth: .infinity)
-            .frame(minHeight: 260, maxHeight: 420)
+            .frame(minHeight: 260, maxHeight: 440)
 
             VStack(alignment: .leading, spacing: 0) {
-                Eyebrow("Around this moment").padding(.bottom, 10)
+                Eyebrow("Around this moment").padding(.bottom, 12)
                 let lo = max(0, index - 5)
                 let hi = max(lo, min(events.count, index + 7))
                 ForEach(Array(events[lo..<hi].enumerated()), id: \.element.id) { offset, e in
                     let isNow = lo + offset == index
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Rectangle().fill(isNow ? Theme.sun : .clear).frame(width: 2, height: 14)
-                        Text(e.member == .cloud ? "Cloud" : e.member.name).font(.system(size: 10.5, weight: .semibold))
-                            .foregroundStyle(isNow ? Theme.ink : Theme.ink3).frame(width: 50, alignment: .leading)
-                        Text(e.text).font(e.kind == .tool ? Theme.mono(10.5) : Theme.body(11.5))
-                            .foregroundStyle(isNow ? Theme.ink : Theme.ink2).lineLimit(isNow ? 4 : 1)
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Circle().fill(Theme.color(e.member)).frame(width: isNow ? 7 : 5, height: isNow ? 7 : 5)
+                            .shadow(color: isNow ? Theme.color(e.member) : .clear, radius: 4)
+                            .alignmentGuide(.firstTextBaseline) { d in d[VerticalAlignment.center] + 4 }
+                        Text(e.text).font(e.kind == .tool ? Theme.mono(10.5) : Theme.body(12))
+                            .foregroundStyle(isNow ? Theme.ink : Theme.ink3).lineLimit(isNow ? 5 : 1)
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 5)
+                    .padding(.horizontal, 10)
+                    .background(isNow ? Theme.glassStrong : .clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                     .contentShape(Rectangle())
                     .onTapGesture { cursor = Double(lo + offset) }
                 }
             }
+            .padding(16)
             .frame(width: 330, alignment: .topLeading)
+            .glass(radius: 20)
         }
     }
 
     private var lanesView: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 2) {
             ForEach(lanes, id: \.self) { lane in
-                HStack(spacing: 12) {
-                    Text(lane == .cloud ? "Cloud" : lane.name).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.ink2)
-                        .frame(width: 58, alignment: .leading)
+                HStack(spacing: 14) {
+                    MemberTag(member: lane).frame(width: 70, alignment: .leading)
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
-                            Rectangle().fill(Theme.line).frame(height: 1)
+                            Capsule().fill(Color.white.opacity(0.05)).frame(height: 4)
                             ForEach(laneEvents(lane)) { e in
-                                RoundedRectangle(cornerRadius: 1)
-                                    .fill(tickColor(e))
-                                    .frame(width: e.kind == .tool ? 1.5 : 3, height: e.kind == .tool ? 8 : 14)
+                                Capsule()
+                                    .fill(e.kind == .tool ? Theme.color(lane).opacity(0.45) : tickColor(e, lane))
+                                    .frame(width: e.kind == .tool ? 1.5 : 3, height: e.kind == .tool ? 8 : 16)
+                                    .shadow(color: e.kind == .tool ? .clear : tickColor(e, lane).opacity(0.8), radius: 3)
                                     .offset(x: x(e.at, geo.size.width))
                             }
                             if let c = current {
-                                Rectangle().fill(Theme.sun).frame(width: 2, height: 28).offset(x: x(c.at, geo.size.width) - 1)
+                                Rectangle().fill(Theme.ink).frame(width: 1, height: 30).offset(x: x(c.at, geo.size.width))
                             }
                         }
                         .frame(height: geo.size.height)
                         .contentShape(Rectangle())
                         .gesture(DragGesture(minimumDistance: 0).onChanged { v in seek(to: v.location.x / max(1, geo.size.width)) })
                     }
-                    .frame(height: 28)
+                    .frame(height: 30)
                 }
             }
         }
-        .padding(16)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.line, lineWidth: 1))
+        .padding(18)
+        .glass(radius: 20)
+    }
+
+    private var transport: some View {
+        HStack(spacing: 16) {
+            Button {
+                if index >= events.count - 1 { cursor = 0 }
+                playing.toggle()
+            } label: {
+                Image(systemName: playing ? "pause.fill" : "play.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color(red: 0.1, green: 0.07, blue: 0.03))
+                    .frame(width: 40, height: 40)
+                    .background(Theme.sun, in: Circle())
+                    .shadow(color: Theme.sunGlow, radius: 12)
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.space, modifiers: [])
+            Slider(value: $cursor, in: 0...Double(max(1, events.count - 1)))
+                .tint(Theme.sun)
+            Text("\(index + 1) / \(events.count)").font(Theme.numeral(13, weight: .light)).foregroundStyle(Theme.ink3)
+                .frame(width: 84, alignment: .trailing)
+        }
     }
 
     private func laneEvents(_ lane: Member) -> [TimelineEvent] {
@@ -210,14 +218,11 @@ private struct ReplayStage: View {
         CGFloat(at.timeIntervalSince(start) / span) * max(0, width - 3)
     }
 
-    private func tickColor(_ e: TimelineEvent) -> Color {
+    private func tickColor(_ e: TimelineEvent, _ lane: Member) -> Color {
         switch e.kind {
-        case .snapshot: return Theme.calm
         case .error: return Theme.alert
-        case .question, .answer: return Theme.sunDeep
         case .done: return Theme.good
-        case .tool: return Theme.ink3
-        default: return Theme.ink
+        default: return Theme.color(lane)
         }
     }
 

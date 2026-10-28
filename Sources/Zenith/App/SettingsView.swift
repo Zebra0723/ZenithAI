@@ -13,7 +13,8 @@ struct SettingsView: View {
 
     var body: some View {
         Page(maxWidth: 860) {
-            PageTitle(eyebrow: "Settings", title: "How Zenith runs the Galaxy")
+            PageTitle(eyebrow: "Settings", title: "How Zenith runs the Galaxy.",
+                      subtitle: "Where the work happens, how much of the week it may use, and your rules for who it may reach.")
 
             section("The cloud computer") {
                 row("Where missions run", "Claude Code cloud sessions are part of the Max plan and keep running with the Mac off. Zenith uses them only after the check below passes; until then, an isolated sandbox on this Mac.") {
@@ -41,7 +42,7 @@ struct SettingsView: View {
             section("Galaxy budget") {
                 row("Cap", "The whole Galaxy stays under this share of the weekly Max limit. Zenith runs only when there's room under it.") {
                     HStack(spacing: 10) {
-                        Slider(value: $store.settings.budget.capPercent, in: 10...90, step: 5).tint(Theme.ink).frame(width: 170)
+                        Slider(value: $store.settings.budget.capPercent, in: 10...90, step: 5).tint(Theme.sun).frame(width: 170)
                         Text("\(Int(store.settings.budget.capPercent))%").font(Theme.mono(12, weight: .semibold)).frame(width: 40, alignment: .trailing)
                     }
                 }
@@ -85,6 +86,8 @@ struct SettingsView: View {
                 }
                 VStack(alignment: .leading, spacing: 10) {
                     Text("No-approval allowlist").font(.system(size: 13.5, weight: .semibold))
+                    Text("Comet may text these people during a mission without asking you first.")
+                        .font(Theme.body(12)).foregroundStyle(Theme.ink3)
                     ForEach(store.settings.allowlist, id: \.self) { contact in
                         HStack {
                             Text(contact).font(Theme.mono(12))
@@ -96,7 +99,7 @@ struct SettingsView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Theme.raised, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     HStack(spacing: 8) {
                         TextField("Name, phone number or email", text: $newContact).zenithField().onSubmit(addContact)
@@ -121,7 +124,11 @@ struct SettingsView: View {
                     connector.connected ? "Handoffs, approvals, status and the done text go through Link." : "Zenith works alone until Link starts: no Nova, Comet or Nebula, and no missions from them.") {
                     HStack(spacing: 6) {
                         ForEach(connector.bodies.filter { $0.id != "zenith" }) { b in
-                            Pill(text: b.name, color: b.online ? Theme.good : Theme.ink3)
+                            if let member = Member(rawValue: b.id) {
+                                MemberTag(member: member).opacity(b.online ? 1 : 0.45)
+                            } else {
+                                Pill(text: b.name, color: b.online ? Theme.good : Theme.ink3)
+                            }
                         }
                     }
                 }
@@ -177,20 +184,20 @@ struct SettingsView: View {
     }
 
     private func section<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(title).padding(.bottom, 12)
-            VStack(alignment: .leading, spacing: 16) { content() }
-                .padding(20)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.line, lineWidth: 1))
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title).font(Theme.display(24)).tracking(-0.3).padding(.leading, 4)
+            VStack(alignment: .leading, spacing: 20) { content() }
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glass(radius: 22)
         }
     }
 
     private func row<Control: View>(_ title: String, _ detail: String, @ViewBuilder _ control: () -> Control) -> some View {
-        HStack(alignment: .center, spacing: 20) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.system(size: 13.5, weight: .semibold))
-                Text(detail).font(Theme.body(12)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .center, spacing: 24) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title).font(.system(size: 13.5, weight: .semibold)).foregroundStyle(Theme.ink)
+                Text(detail).font(Theme.body(12)).lineSpacing(2).foregroundStyle(Theme.ink3).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 12)
             control()
